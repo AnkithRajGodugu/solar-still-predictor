@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+*.egg
+*.eggs/
+*.env
+.env
+.venv
+venv/
+ENV/
+
+# Django
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+media/
+staticfiles/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Model files
+*.h5
+*.pkl
+trained_models/
+
+# Misc
+*.bak
+*.swp
+*.tmp
+
+# Node
+node_modules/
+
+# Others
+*.orig
+
+# Ignore server logs
+server_log*.txt
+
+# Ignore coverage reports
+coverage/
+*.cover
+*.coverage
+*.cov
