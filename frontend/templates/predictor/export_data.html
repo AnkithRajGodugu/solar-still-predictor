@@ -1,0 +1,140 @@
+{% extends 'predictor/base.html' %}
+
+{% block title %}Export Data - Solar Still Predictor{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="page-title mb-0">Export Data</h1>
+    <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Export Options</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.export_type.id_for_label }}" class="form-label">Export Type</label>
+                        {{ form.export_type }}
+                        {% if form.export_type.errors %}
+                        <div class="text-danger mt-1">
+                            {% for error in form.export_type.errors %}
+                            <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.file_format.id_for_label }}" class="form-label">File Format</label>
+                        {{ form.file_format }}
+                        {% if form.file_format.errors %}
+                        <div class="text-danger mt-1">
+                            {% for error in form.file_format.errors %}
+                            <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.date_from.id_for_label }}" class="form-label">Date From</label>
+                        {{ form.date_from }}
+                        {% if form.date_from.errors %}
+                        <div class="text-danger mt-1">
+                            {% for error in form.date_from.errors %}
+                            <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.date_to.id_for_label }}" class="form-label">Date To</label>
+                        {{ form.date_to }}
+                        {% if form.date_to.errors %}
+                        <div class="text-danger mt-1">
+                            {% for error in form.date_to.errors %}
+                            <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <label for="{{ form.include_predictions.id_for_label }}" class="form-check-label">
+                            {{ form.include_predictions }}
+                            Include predictions for measurements without actual results
+                        </label>
+                        {% if form.include_predictions.errors %}
+                        <div class="text-danger mt-1">
+                            {% for error in form.include_predictions.errors %}
+                            <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-download"></i> Export Data
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Export Information</h5>
+            </div>
+            <div class="card-body">
+                <h6>Available Export Types:</h6>
+                <ul>
+                    <li><strong>All Measurements</strong>: Exports all measurement data with inputs and outputs.</li>
+                    <li><strong>Only Completed Measurements</strong>: Exports only measurements that have actual efficiency and freshwater quantity values.</li>
+                    <li><strong>Only Predictions</strong>: Exports only prediction data made by the models.</li>
+                    <li><strong>Model Performance</strong>: Exports model training and validation metrics.</li>
+                </ul>
+                
+                <h6 class="mt-3">Available File Formats:</h6>
+                <ul>
+                    <li><strong>CSV</strong>: Comma-separated values format, ideal for spreadsheet programs.</li>
+                    <li><strong>XLSX</strong>: Microsoft Excel format with multiple sheets (when applicable).</li>
+                    <li><strong>JSON</strong>: JavaScript Object Notation, ideal for programmatic use.</li>
+                </ul>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle"></i> Exporting with "Include predictions" will use the active 
+                    model to predict efficiency and freshwater quantity for measurements that don't have actual results.
+                </div>
+                
+                <div class="data-stats mt-3">
+                    <h6>Data Available for Export:</h6>
+                    <ul>
+                        <li><strong>Total Measurements:</strong> {{ stats.total_measurements }}</li>
+                        <li><strong>Measurements with Results:</strong> {{ stats.measurements_with_results }}</li>
+                        <li><strong>Predictions Made:</strong> {{ stats.total_predictions }}</li>
+                        <li><strong>Trained Models:</strong> {{ stats.total_models }}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

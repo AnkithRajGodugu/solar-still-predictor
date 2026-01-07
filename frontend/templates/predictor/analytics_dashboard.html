@@ -1,0 +1,701 @@
+{% extends 'predictor/base.html' %}
+
+{% block title %}Analytics Dashboard - Solar Still Predictor{% endblock %}
+
+{% block extra_css %}
+<style>
+    .analytics-card {
+        transition: transform 0.2s;
+        height: 100%;
+    }
+    
+    .analytics-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .chart-container {
+        height: 300px;
+        margin-bottom: 20px;
+    }
+    
+    .stat-card {
+        color: white;
+        text-align: center;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .stat-card .stat-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+    }
+    
+    .stat-card .stat-label {
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        letter-spacing: 1px;
+    }
+    
+    .bg-measurements {
+        background: linear-gradient(45deg, #4e73df, #2e59d9);
+    }
+    
+    .bg-models {
+        background: linear-gradient(45deg, #1cc88a, #13855c);
+    }
+    
+    .bg-predictions {
+        background: linear-gradient(45deg, #36b9cc, #258391);
+    }
+    
+    .bg-accuracy {
+        background: linear-gradient(45deg, #f6c23e, #dda20a);
+    }
+    
+    .tooltip {
+        position: absolute;
+        padding: 10px;
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        border-radius: 5px;
+        pointer-events: none;
+        z-index: 1000;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="page-title mb-0">Analytics Dashboard</h1>
+    <div>
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Key Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card bg-measurements">
+            <div class="stat-value">{{ measurements_count }}</div>
+            <div class="stat-label">Measurements</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card bg-models">
+            <div class="stat-value">{{ models_count }}</div>
+            <div class="stat-label">Trained Models</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card bg-predictions">
+            <div class="stat-value">{{ predictions_count }}</div>
+            <div class="stat-label">Predictions Made</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card bg-accuracy">
+            <div class="stat-value">{{ latest_model_accuracy|floatformat:1 }}%</div>
+            <div class="stat-label">Latest Model Accuracy</div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 1 -->
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card mb-4 analytics-card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Temperature vs Efficiency</h5>
+            </div>
+            <div class="card-body">
+                <div id="temperature-chart" class="chart-container"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card mb-4 analytics-card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Solar Radiation vs Efficiency</h5>
+            </div>
+            <div class="card-body">
+                <div id="radiation-chart" class="chart-container"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card mb-4 analytics-card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Model Performance Comparison</h5>
+            </div>
+            <div class="card-body">
+                <div id="model-performance-chart" class="chart-container"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card mb-4 analytics-card">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">Prediction Accuracy Over Time</h5>
+            </div>
+            <div class="card-body">
+                <div id="prediction-accuracy-chart" class="chart-container"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recommendations -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Recommendations</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Optimal Operating Conditions</h5>
+                <ul class="list-group mb-4">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Ambient Temperature
+                        <span class="badge bg-primary rounded-pill">{{ optimal_conditions.ambient_temperature }}°C</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Water Temperature
+                        <span class="badge bg-primary rounded-pill">{{ optimal_conditions.water_temperature }}°C</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Glass Temperature
+                        <span class="badge bg-primary rounded-pill">{{ optimal_conditions.glass_temperature }}°C</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Solar Radiation
+                        <span class="badge bg-primary rounded-pill">{{ optimal_conditions.solar_radiation }} W/m²</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Wind Speed
+                        <span class="badge bg-primary rounded-pill">{{ optimal_conditions.wind_speed }} m/s</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Humidity
+                        <span class="badge bg-primary rounded-pill">{{ optimal_conditions.humidity }}%</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h5>Improvement Opportunities</h5>
+                <div class="alert alert-info">
+                    <i class="fas fa-lightbulb"></i> Based on the analysis of your data, here are some recommendations to improve your solar still efficiency:
+                </div>
+                <ol>
+                    <li class="mb-2">Maintain water temperature between 30-40°C for optimal efficiency</li>
+                    <li class="mb-2">The best operation time is between 10 AM and 2 PM when solar radiation is highest</li>
+                    <li class="mb-2">Consider adding insulation to reduce heat loss during operation</li>
+                    <li class="mb-2">Collect more data in varying weather conditions to improve model accuracy</li>
+                    <li class="mb-2">Train a new model with at least 100 more data points for better predictions</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- D3.js for visualizations -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<script>
+    // Parse the JSON data from the context
+    const temperatureData = JSON.parse('{{ temperature_data|safe }}');
+    const radiationData = JSON.parse('{{ radiation_data|safe }}');
+    const modelPerformance = JSON.parse('{{ model_performance|safe }}');
+    const predictionAccuracy = JSON.parse('{{ prediction_accuracy|safe }}');
+    
+    // Initialize tooltip
+    const tooltip = d3.select("body").append("div")
+        .attr("class", "tooltip")
+        .style("opacity", 0);
+    
+    // Temperature vs Efficiency Chart
+    function createTemperatureChart() {
+        const container = d3.select("#temperature-chart");
+        const margin = {top: 20, right: 30, bottom: 40, left: 50};
+        const width = container.node().getBoundingClientRect().width - margin.left - margin.right;
+        const height = container.node().getBoundingClientRect().height - margin.top - margin.bottom;
+        
+        // Create SVG
+        const svg = container.append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+        
+        // Define scales
+        const x = d3.scaleLinear()
+            .domain([
+                d3.min(temperatureData, d => d.ambient_temperature) - 2,
+                d3.max(temperatureData, d => d.ambient_temperature) + 2
+            ])
+            .range([0, width]);
+        
+        const y = d3.scaleLinear()
+            .domain([0, d3.max(temperatureData, d => d.efficiency) * 1.1])
+            .range([height, 0]);
+        
+        // Draw axes
+        svg.append("g")
+            .attr("transform", `translate(0,${height})`)
+            .call(d3.axisBottom(x))
+            .append("text")
+            .attr("y", 30)
+            .attr("x", width / 2)
+            .attr("fill", "#000")
+            .attr("text-anchor", "middle")
+            .text("Ambient Temperature (°C)");
+        
+        svg.append("g")
+            .call(d3.axisLeft(y))
+            .append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("y", -40)
+            .attr("x", -height / 2)
+            .attr("fill", "#000")
+            .attr("text-anchor", "middle")
+            .text("Efficiency (%)");
+        
+        // Add scatter points
+        svg.selectAll(".dot")
+            .data(temperatureData)
+            .enter()
+            .append("circle")
+            .attr("class", "dot")
+            .attr("cx", d => x(d.ambient_temperature))
+            .attr("cy", d => y(d.efficiency))
+            .attr("r", 5)
+            .attr("fill", "#4e73df")
+            .attr("opacity", 0.7)
+            .on("mouseover", function(event, d) {
+                d3.select(this)
+                    .attr("r", 8)
+                    .attr("opacity", 1);
+                
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                
+                tooltip.html(`Temperature: ${d.ambient_temperature.toFixed(1)}°C<br>Efficiency: ${d.efficiency.toFixed(1)}%`)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function() {
+                d3.select(this)
+                    .attr("r", 5)
+                    .attr("opacity", 0.7);
+                
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            });
+        
+        // Add trend line
+        if (temperatureData.length > 1) {
+            // Calculate trend line
+            const lineData = temperatureData.map(d => ({
+                x: d.ambient_temperature,
+                y: d.efficiency
+            }));
+            
+            // Create line generator
+            const line = d3.line()
+                .x(d => x(d.x))
+                .y(d => y(d.y))
+                .curve(d3.curveBasis);
+            
+            // Add trend line
+            svg.append("path")
+                .datum(lineData)
+                .attr("fill", "none")
+                .attr("stroke", "#2e59d9")
+                .attr("stroke-width", 2)
+                .attr("stroke-dasharray", "5,5")
+                .attr("d", line);
+        }
+    }
+    
+    // Solar Radiation vs Efficiency Chart
+    function createRadiationChart() {
+        const container = d3.select("#radiation-chart");
+        const margin = {top: 20, right: 30, bottom: 40, left: 50};
+        const width = container.node().getBoundingClientRect().width - margin.left - margin.right;
+        const height = container.node().getBoundingClientRect().height - margin.top - margin.bottom;
+        
+        // Create SVG
+        const svg = container.append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+        
+        // Define scales
+        const x = d3.scaleLinear()
+            .domain([
+                d3.min(radiationData, d => d.solar_radiation) - 50,
+                d3.max(radiationData, d => d.solar_radiation) + 50
+            ])
+            .range([0, width]);
+        
+        const y = d3.scaleLinear()
+            .domain([0, d3.max(radiationData, d => d.efficiency) * 1.1])
+            .range([height, 0]);
+        
+        // Draw axes
+        svg.append("g")
+            .attr("transform", `translate(0,${height})`)
+            .call(d3.axisBottom(x))
+            .append("text")
+            .attr("y", 30)
+            .attr("x", width / 2)
+            .attr("fill", "#000")
+            .attr("text-anchor", "middle")
+            .text("Solar Radiation (W/m²)");
+        
+        svg.append("g")
+            .call(d3.axisLeft(y))
+            .append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("y", -40)
+            .attr("x", -height / 2)
+            .attr("fill", "#000")
+            .attr("text-anchor", "middle")
+            .text("Efficiency (%)");
+        
+        // Add scatter points
+        svg.selectAll(".dot")
+            .data(radiationData)
+            .enter()
+            .append("circle")
+            .attr("class", "dot")
+            .attr("cx", d => x(d.solar_radiation))
+            .attr("cy", d => y(d.efficiency))
+            .attr("r", 5)
+            .attr("fill", "#1cc88a")
+            .attr("opacity", 0.7)
+            .on("mouseover", function(event, d) {
+                d3.select(this)
+                    .attr("r", 8)
+                    .attr("opacity", 1);
+                
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                
+                tooltip.html(`Solar Radiation: ${d.solar_radiation.toFixed(0)} W/m²<br>Efficiency: ${d.efficiency.toFixed(1)}%`)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function() {
+                d3.select(this)
+                    .attr("r", 5)
+                    .attr("opacity", 0.7);
+                
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            });
+        
+        // Add trend line if we have data
+        if (radiationData.length > 1) {
+            // Calculate trend line
+            const lineData = radiationData.map(d => ({
+                x: d.solar_radiation,
+                y: d.efficiency
+            }));
+            
+            // Create line generator
+            const line = d3.line()
+                .x(d => x(d.x))
+                .y(d => y(d.y))
+                .curve(d3.curveBasis);
+            
+            // Add trend line
+            svg.append("path")
+                .datum(lineData)
+                .attr("fill", "none")
+                .attr("stroke", "#13855c")
+                .attr("stroke-width", 2)
+                .attr("stroke-dasharray", "5,5")
+                .attr("d", line);
+        }
+    }
+    
+    // Model Performance Comparison Chart
+    function createModelPerformanceChart() {
+        const container = d3.select("#model-performance-chart");
+        const margin = {top: 20, right: 30, bottom: 60, left: 50};
+        const width = container.node().getBoundingClientRect().width - margin.left - margin.right;
+        const height = container.node().getBoundingClientRect().height - margin.top - margin.bottom;
+        
+        // Create SVG
+        const svg = container.append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+        
+        // Define scales
+        const x = d3.scaleBand()
+            .domain(modelPerformance.map(d => d.name))
+            .range([0, width])
+            .padding(0.3);
+        
+        const y = d3.scaleLinear()
+            .domain([0, 100]) // Accuracy as percentage
+            .range([height, 0]);
+        
+        // Draw axes
+        svg.append("g")
+            .attr("transform", `translate(0,${height})`)
+            .call(d3.axisBottom(x))
+            .selectAll("text")
+            .attr("transform", "rotate(-45)")
+            .style("text-anchor", "end")
+            .attr("dx", "-.8em")
+            .attr("dy", ".15em");
+        
+        svg.append("g")
+            .call(d3.axisLeft(y).tickFormat(d => d + "%"));
+        
+        // Add bars for accuracy
+        svg.selectAll(".bar")
+            .data(modelPerformance)
+            .enter()
+            .append("rect")
+            .attr("class", "bar")
+            .attr("x", d => x(d.name))
+            .attr("width", x.bandwidth())
+            .attr("y", d => y(d.accuracy))
+            .attr("height", d => height - y(d.accuracy))
+            .attr("fill", "#36b9cc")
+            .on("mouseover", function(event, d) {
+                d3.select(this)
+                    .attr("fill", "#258391");
+                
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                
+                tooltip.html(`Model: ${d.name}<br>Accuracy: ${d.accuracy.toFixed(1)}%<br>MSE: ${d.mse.toFixed(4)}`)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function() {
+                d3.select(this)
+                    .attr("fill", "#36b9cc");
+                
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            });
+        
+        // Add accuracy value labels above bars
+        svg.selectAll(".label")
+            .data(modelPerformance)
+            .enter()
+            .append("text")
+            .attr("class", "label")
+            .attr("x", d => x(d.name) + x.bandwidth() / 2)
+            .attr("y", d => y(d.accuracy) - 5)
+            .attr("text-anchor", "middle")
+            .text(d => `${d.accuracy.toFixed(1)}%`);
+    }
+    
+    // Prediction Accuracy Over Time Chart
+    function createPredictionAccuracyChart() {
+        const container = d3.select("#prediction-accuracy-chart");
+        const margin = {top: 20, right: 30, bottom: 40, left: 50};
+        const width = container.node().getBoundingClientRect().width - margin.left - margin.right;
+        const height = container.node().getBoundingClientRect().height - margin.top - margin.bottom;
+        
+        // Create SVG
+        const svg = container.append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+        
+        // Parse dates
+        const parseDate = d3.timeParse("%Y-%m-%d");
+        const data = predictionAccuracy.map(d => ({
+            date: parseDate(d.date),
+            actual: d.actual,
+            predicted: d.predicted
+        }));
+        
+        // Define scales
+        const x = d3.scaleTime()
+            .domain(d3.extent(data, d => d.date))
+            .range([0, width]);
+        
+        const y = d3.scaleLinear()
+            .domain([
+                d3.min(data, d => Math.min(d.actual, d.predicted)) * 0.9,
+                d3.max(data, d => Math.max(d.actual, d.predicted)) * 1.1
+            ])
+            .range([height, 0]);
+        
+        // Draw axes
+        svg.append("g")
+            .attr("transform", `translate(0,${height})`)
+            .call(d3.axisBottom(x).ticks(5).tickFormat(d3.timeFormat("%b %d")));
+        
+        svg.append("g")
+            .call(d3.axisLeft(y).tickFormat(d => d + "%"));
+        
+        // Create line generators
+        const actualLine = d3.line()
+            .x(d => x(d.date))
+            .y(d => y(d.actual))
+            .curve(d3.curveBasis);
+        
+        const predictedLine = d3.line()
+            .x(d => x(d.date))
+            .y(d => y(d.predicted))
+            .curve(d3.curveBasis);
+        
+        // Add actual line
+        svg.append("path")
+            .datum(data)
+            .attr("fill", "none")
+            .attr("stroke", "#e74a3b")
+            .attr("stroke-width", 2)
+            .attr("d", actualLine);
+        
+        // Add predicted line
+        svg.append("path")
+            .datum(data)
+            .attr("fill", "none")
+            .attr("stroke", "#f6c23e")
+            .attr("stroke-width", 2)
+            .attr("d", predictedLine);
+        
+        // Add dots for actual values
+        svg.selectAll(".dot-actual")
+            .data(data)
+            .enter()
+            .append("circle")
+            .attr("class", "dot-actual")
+            .attr("cx", d => x(d.date))
+            .attr("cy", d => y(d.actual))
+            .attr("r", 4)
+            .attr("fill", "#e74a3b")
+            .on("mouseover", function(event, d) {
+                d3.select(this).attr("r", 6);
+                
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                
+                tooltip.html(`Date: ${d3.timeFormat("%b %d, %Y")(d.date)}<br>Actual: ${d.actual.toFixed(1)}%`)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function() {
+                d3.select(this).attr("r", 4);
+                
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            });
+        
+        // Add dots for predicted values
+        svg.selectAll(".dot-predicted")
+            .data(data)
+            .enter()
+            .append("circle")
+            .attr("class", "dot-predicted")
+            .attr("cx", d => x(d.date))
+            .attr("cy", d => y(d.predicted))
+            .attr("r", 4)
+            .attr("fill", "#f6c23e")
+            .on("mouseover", function(event, d) {
+                d3.select(this).attr("r", 6);
+                
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                
+                tooltip.html(`Date: ${d3.timeFormat("%b %d, %Y")(d.date)}<br>Predicted: ${d.predicted.toFixed(1)}%`)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function() {
+                d3.select(this).attr("r", 4);
+                
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            });
+        
+        // Add legend
+        const legend = svg.append("g")
+            .attr("transform", `translate(${width - 100}, 0)`);
+        
+        // Actual legend item
+        legend.append("circle")
+            .attr("cx", 0)
+            .attr("cy", 10)
+            .attr("r", 4)
+            .attr("fill", "#e74a3b");
+        
+        legend.append("text")
+            .attr("x", 10)
+            .attr("y", 10)
+            .attr("dy", ".35em")
+            .style("font-size", "12px")
+            .text("Actual");
+        
+        // Predicted legend item
+        legend.append("circle")
+            .attr("cx", 0)
+            .attr("cy", 30)
+            .attr("r", 4)
+            .attr("fill", "#f6c23e");
+        
+        legend.append("text")
+            .attr("x", 10)
+            .attr("y", 30)
+            .attr("dy", ".35em")
+            .style("font-size", "12px")
+            .text("Predicted");
+    }
+    
+    // Create all charts when the page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        createTemperatureChart();
+        createRadiationChart();
+        createModelPerformanceChart();
+        createPredictionAccuracyChart();
+        
+        // Resize handler for responsive charts
+        window.addEventListener('resize', function() {
+            // Clear existing visualizations
+            d3.select("#temperature-chart").selectAll("*").remove();
+            d3.select("#radiation-chart").selectAll("*").remove();
+            d3.select("#model-performance-chart").selectAll("*").remove();
+            d3.select("#prediction-accuracy-chart").selectAll("*").remove();
+            
+            // Redraw visualizations
+            createTemperatureChart();
+            createRadiationChart();
+            createModelPerformanceChart();
+            createPredictionAccuracyChart();
+        });
+    });
+</script>
+{% endblock %} 

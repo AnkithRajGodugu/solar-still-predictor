@@ -1,0 +1,561 @@
+{% extends 'predictor/base.html' %}
+
+{% block title %}Model Visualization - {{ model.name }} - Solar Still Predictor{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Neural network visualization styles */
+    .layer {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .node {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        margin: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 10px;
+    }
+    
+    .input-node {
+        background-color: #4e73df;
+    }
+    
+    .hidden-node {
+        background-color: #36b9cc;
+    }
+    
+    .output-node {
+        background-color: #1cc88a;
+    }
+    
+    .connection {
+        stroke: #ccc;
+        stroke-width: 1px;
+    }
+    
+    .connection-weight-positive {
+        stroke: #1cc88a;
+    }
+    
+    .connection-weight-negative {
+        stroke: #e74a3b;
+    }
+    
+    .connection-hoverable {
+        stroke-width: 5px;
+        stroke-opacity: 0;
+        cursor: pointer;
+    }
+    
+    .tooltip {
+        position: absolute;
+        padding: 10px;
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        border-radius: 5px;
+        pointer-events: none;
+        z-index: 1000;
+    }
+    
+    .chart-container {
+        height: 250px;
+        margin-bottom: 20px;
+    }
+    
+    .feature-bar {
+        fill: #4e73df;
+    }
+    
+    .feature-bar:hover {
+        fill: #2e59d9;
+    }
+    
+    .weight-circle {
+        fill: #1cc88a;
+        opacity: 0.7;
+    }
+    
+    .weight-circle.negative {
+        fill: #e74a3b;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="page-title mb-0">{{ model.name }} - Neural Network Visualization</h1>
+    <div>
+        <a href="{% url 'model-detail' model.id %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Model Details
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Neural Network Architecture</h5>
+            </div>
+            <div class="card-body">
+                <div id="nn-visualization" style="width: 100%; height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Layer Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="layers-table">
+                        <thead>
+                            <tr>
+                                <th>Layer</th>
+                                <th>Nodes</th>
+                                <th>Activation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Weight Distribution</h5>
+            </div>
+            <div class="card-body">
+                <div id="weight-chart" class="chart-container"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">Feature Importance</h5>
+            </div>
+            <div class="card-body">
+                <div id="feature-chart" class="chart-container"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">Sample Predictions</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="predictions-table">
+                        <thead>
+                            <tr>
+                                <th>Input</th>
+                                <th>Value</th>
+                                <th>Output</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Model Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-6 mb-4">
+                        <div class="display-4 mb-2">{{ model.accuracy|floatformat:2 }}%</div>
+                        <div class="text-muted">Accuracy</div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="display-4 mb-2">{{ model.mse|floatformat:4 }}</div>
+                        <div class="text-muted">Mean Squared Error</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- D3.js for visualizations -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<script>
+    // Parse the JSON data from the context
+    const layerStructure = JSON.parse('{{ layer_structure|safe }}');
+    const featureImportance = JSON.parse('{{ feature_importance|safe }}');
+    const samplePredictions = JSON.parse('{{ sample_predictions|safe }}');
+    const weightDistribution = JSON.parse('{{ weight_distribution|safe }}');
+    
+    // Initialize the tooltip
+    const tooltip = d3.select("body").append("div")
+        .attr("class", "tooltip")
+        .style("opacity", 0);
+    
+    // Draw neural network visualization
+    function drawNeuralNetwork() {
+        const container = d3.select("#nn-visualization");
+        const width = container.node().getBoundingClientRect().width;
+        const height = 400;
+        
+        // Create SVG
+        const svg = container.append("svg")
+            .attr("width", width)
+            .attr("height", height);
+        
+        // Calculate layout
+        const layers = layerStructure.length;
+        const layerWidth = width / (layers + 1);
+        const maxNodes = Math.max(...layerStructure.map(l => l.nodes));
+        const nodeRadius = Math.min(12, height / (maxNodes * 3));
+        
+        // Draw connections first (so they're behind nodes)
+        for (let i = 0; i < layerStructure.length - 1; i++) {
+            const startLayer = layerStructure[i];
+            const endLayer = layerStructure[i + 1];
+            
+            const startX = (i + 1) * layerWidth;
+            const endX = (i + 2) * layerWidth;
+            
+            for (let s = 0; s < startLayer.nodes; s++) {
+                const startY = (height / (startLayer.nodes + 1)) * (s + 1);
+                
+                for (let e = 0; e < endLayer.nodes; e++) {
+                    const endY = (height / (endLayer.nodes + 1)) * (e + 1);
+                    
+                    // Generate a random weight (-1 to 1) for visualization
+                    const weight = (Math.random() * 2) - 1;
+                    
+                    // Draw connection line
+                    svg.append("line")
+                        .attr("class", `connection ${weight > 0 ? 'connection-weight-positive' : 'connection-weight-negative'}`)
+                        .attr("x1", startX)
+                        .attr("y1", startY)
+                        .attr("x2", endX)
+                        .attr("y2", endY)
+                        .style("stroke-opacity", Math.abs(weight))
+                        .style("stroke-width", Math.abs(weight) * 3);
+                    
+                    // Add invisible thicker line for hover interaction
+                    svg.append("line")
+                        .attr("class", "connection-hoverable")
+                        .attr("x1", startX)
+                        .attr("y1", startY)
+                        .attr("x2", endX)
+                        .attr("y2", endY)
+                        .on("mouseover", function(event) {
+                            d3.select(this).style("stroke-opacity", 0.2);
+                            tooltip.transition().duration(200).style("opacity", 0.9);
+                            tooltip.html(`Weight: ${weight.toFixed(3)}`)
+                                .style("left", (event.pageX + 10) + "px")
+                                .style("top", (event.pageY - 28) + "px");
+                        })
+                        .on("mouseout", function() {
+                            d3.select(this).style("stroke-opacity", 0);
+                            tooltip.transition().duration(500).style("opacity", 0);
+                        });
+                }
+            }
+        }
+        
+        // Draw nodes for each layer
+        layerStructure.forEach((layer, i) => {
+            const x = (i + 1) * layerWidth;
+            
+            // Draw label for layer
+            svg.append("text")
+                .attr("x", x)
+                .attr("y", 20)
+                .attr("text-anchor", "middle")
+                .text(layer.name);
+            
+            // Draw nodes
+            for (let j = 0; j < layer.nodes; j++) {
+                const y = (height / (layer.nodes + 1)) * (j + 1);
+                
+                // Determine node type
+                let nodeClass = 'hidden-node';
+                if (i === 0) nodeClass = 'input-node';
+                if (i === layerStructure.length - 1) nodeClass = 'output-node';
+                
+                // Draw node
+                svg.append("circle")
+                    .attr("class", `node ${nodeClass}`)
+                    .attr("cx", x)
+                    .attr("cy", y)
+                    .attr("r", nodeRadius)
+                    .on("mouseover", function(event) {
+                        d3.select(this).attr("r", nodeRadius * 1.2);
+                        tooltip.transition().duration(200).style("opacity", 0.9);
+                        tooltip.html(`Node ${j+1}<br>Activation: ${layer.activation}`)
+                            .style("left", (event.pageX + 10) + "px")
+                            .style("top", (event.pageY - 28) + "px");
+                    })
+                    .on("mouseout", function() {
+                        d3.select(this).attr("r", nodeRadius);
+                        tooltip.transition().duration(500).style("opacity", 0);
+                    });
+                
+                // Draw node number
+                if (nodeRadius > 8) {
+                    svg.append("text")
+                        .attr("x", x)
+                        .attr("y", y + 3)
+                        .attr("text-anchor", "middle")
+                        .attr("font-size", "8px")
+                        .attr("fill", "white")
+                        .text(j + 1);
+                }
+            }
+        });
+    }
+    
+    // Draw feature importance chart
+    function drawFeatureImportanceChart() {
+        const container = d3.select("#feature-chart");
+        const margin = {top: 20, right: 20, bottom: 60, left: 40};
+        const width = container.node().getBoundingClientRect().width - margin.left - margin.right;
+        const height = container.node().getBoundingClientRect().height - margin.top - margin.bottom;
+        
+        // Create SVG
+        const svg = container.append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+        
+        // Define scales
+        const x = d3.scaleBand()
+            .domain(featureImportance.map(d => d.name))
+            .range([0, width])
+            .padding(0.2);
+        
+        const y = d3.scaleLinear()
+            .domain([0, d3.max(featureImportance, d => d.importance)])
+            .range([height, 0]);
+        
+        // Draw axes
+        svg.append("g")
+            .attr("transform", `translate(0,${height})`)
+            .call(d3.axisBottom(x))
+            .selectAll("text")
+            .attr("transform", "rotate(-45)")
+            .style("text-anchor", "end");
+        
+        svg.append("g")
+            .call(d3.axisLeft(y));
+        
+        // Draw bars
+        svg.selectAll(".feature-bar")
+            .data(featureImportance)
+            .enter()
+            .append("rect")
+            .attr("class", "feature-bar")
+            .attr("x", d => x(d.name))
+            .attr("y", d => y(d.importance))
+            .attr("width", x.bandwidth())
+            .attr("height", d => height - y(d.importance))
+            .on("mouseover", function(event, d) {
+                tooltip.transition().duration(200).style("opacity", 0.9);
+                tooltip.html(`${d.name}<br>Importance: ${(d.importance * 100).toFixed(1)}%`)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function() {
+                tooltip.transition().duration(500).style("opacity", 0);
+            });
+    }
+    
+    // Draw weight distribution chart
+    function drawWeightDistributionChart() {
+        const container = d3.select("#weight-chart");
+        const margin = {top: 20, right: 20, bottom: 30, left: 40};
+        const width = container.node().getBoundingClientRect().width - margin.left - margin.right;
+        const height = container.node().getBoundingClientRect().height - margin.top - margin.bottom;
+        
+        // Create SVG
+        const svg = container.append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+        
+        // Prepare data for scatter plot
+        const scatterData = [];
+        
+        Object.entries(weightDistribution).forEach(([layer, weights], layerIndex) => {
+            weights.forEach(weight => {
+                scatterData.push({
+                    layer: `Layer ${layerIndex + 1}`,
+                    weight: weight,
+                    isNegative: weight < 0
+                });
+            });
+        });
+        
+        // Define scales
+        const x = d3.scaleBand()
+            .domain(Object.keys(weightDistribution).map((_, i) => `Layer ${i + 1}`))
+            .range([0, width])
+            .padding(0.2);
+        
+        const y = d3.scaleLinear()
+            .domain([d3.min(scatterData, d => d.weight), d3.max(scatterData, d => d.weight)])
+            .range([height, 0]);
+        
+        // Draw axes
+        svg.append("g")
+            .attr("transform", `translate(0,${height/2})`)
+            .call(d3.axisBottom(x));
+        
+        svg.append("g")
+            .call(d3.axisLeft(y));
+        
+        // Draw zero line
+        svg.append("line")
+            .attr("x1", 0)
+            .attr("x2", width)
+            .attr("y1", y(0))
+            .attr("y2", y(0))
+            .attr("stroke", "black")
+            .attr("stroke-dasharray", "4");
+        
+        // Draw points
+        svg.selectAll(".weight-circle")
+            .data(scatterData)
+            .enter()
+            .append("circle")
+            .attr("class", d => `weight-circle ${d.isNegative ? 'negative' : ''}`)
+            .attr("cx", d => x(d.layer) + (x.bandwidth() / 2) + (Math.random() * 20 - 10))
+            .attr("cy", d => y(d.weight))
+            .attr("r", 4)
+            .on("mouseover", function(event, d) {
+                d3.select(this).attr("r", 6);
+                tooltip.transition().duration(200).style("opacity", 0.9);
+                tooltip.html(`${d.layer}<br>Weight: ${d.weight.toFixed(2)}`)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function() {
+                d3.select(this).attr("r", 4);
+                tooltip.transition().duration(500).style("opacity", 0);
+            });
+    }
+    
+    // Populate the layers table
+    function populateLayersTable() {
+        const table = document.getElementById("layers-table").getElementsByTagName('tbody')[0];
+        
+        layerStructure.forEach(layer => {
+            const row = table.insertRow();
+            row.insertCell(0).textContent = layer.name;
+            row.insertCell(1).textContent = layer.nodes;
+            row.insertCell(2).textContent = layer.activation;
+        });
+    }
+    
+    // Populate the sample predictions table
+    function populatePredictionsTable() {
+        const table = document.getElementById("predictions-table").getElementsByTagName('tbody')[0];
+        
+        samplePredictions.forEach(prediction => {
+            // Add rows for each input
+            Object.entries(prediction.inputs).forEach(([key, value]) => {
+                const row = table.insertRow();
+                row.insertCell(0).textContent = formatInputName(key);
+                row.insertCell(1).textContent = formatInputValue(key, value);
+                
+                // For first row, span the output cells for this prediction
+                if (key === Object.keys(prediction.inputs)[0]) {
+                    row.insertCell(2).textContent = 'Efficiency';
+                    row.insertCell(3).textContent = `${prediction.outputs.efficiency.toFixed(1)}%`;
+                } else if (key === Object.keys(prediction.inputs)[1]) {
+                    row.insertCell(2).textContent = 'Freshwater';
+                    row.insertCell(3).textContent = `${prediction.outputs.freshwater.toFixed(0)} ml`;
+                } else {
+                    row.insertCell(2).textContent = '';
+                    row.insertCell(3).textContent = '';
+                }
+            });
+            
+            // Add a separator row
+            const separator = table.insertRow();
+            separator.insertCell(0).colSpan = 4;
+            separator.style.height = '10px';
+            separator.style.backgroundColor = '#f8f9fa';
+        });
+    }
+    
+    // Format input field names for display
+    function formatInputName(name) {
+        // Convert snake_case to Title Case
+        return name.split('_').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ');
+    }
+    
+    // Format input values with appropriate units
+    function formatInputValue(key, value) {
+        if (key.includes('temp')) return `${value.toFixed(1)} °C`;
+        if (key.includes('rad')) return `${value.toFixed(0)} W/m²`;
+        if (key.includes('speed')) return `${value.toFixed(1)} m/s`;
+        if (key.includes('humidity')) return `${value.toFixed(0)}%`;
+        return value.toString();
+    }
+    
+    // Run all visualization functions
+    document.addEventListener('DOMContentLoaded', function() {
+        drawNeuralNetwork();
+        drawFeatureImportanceChart();
+        drawWeightDistributionChart();
+        populateLayersTable();
+        populatePredictionsTable();
+        
+        // Resize handler for responsive charts
+        window.addEventListener('resize', function() {
+            // Clear existing visualizations
+            d3.select("#nn-visualization").selectAll("*").remove();
+            d3.select("#feature-chart").selectAll("*").remove();
+            d3.select("#weight-chart").selectAll("*").remove();
+            
+            // Redraw visualizations
+            drawNeuralNetwork();
+            drawFeatureImportanceChart();
+            drawWeightDistributionChart();
+        });
+    });
+</script>
+{% endblock %} 

@@ -1,0 +1,211 @@
+{% extends 'predictor/base.html' %}
+
+{% block title %}Model Details - Solar Still Predictor{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="page-title mb-0">Model Details</h1>
+    <div>
+        <a href="{% url 'model-list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+        <a href="{% url 'model-visualize' model.id %}" class="btn btn-info">
+            <i class="fas fa-project-diagram"></i> Visualize Model
+        </a>
+        <a href="{% url 'analytics-dashboard' %}" class="btn btn-primary">
+            <i class="fas fa-chart-line"></i> Analytics
+        </a>
+        {% if not model.is_active %}
+        <a href="{% url 'set-active-model' model.id %}" class="btn btn-success">
+            <i class="fas fa-check"></i> Set as Active
+        </a>
+        <a href="{% url 'model-delete' model.id %}" class="btn btn-danger">
+            <i class="fas fa-trash"></i> Delete
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <!-- Basic Info Card -->
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Model Information</h5>
+            </div>
+            <div class="card-body">
+                <h4>{{ model.name }}
+                    {% if model.is_active %}
+                    <span class="badge bg-success">Active</span>
+                    {% endif %}
+                </h4>
+                <p class="text-muted">Created on {{ model.created_at|date:"F d, Y" }} at {{ model.created_at|time:"H:i" }}</p>
+                <hr>
+                <div class="mb-3">
+                    <h6>Description</h6>
+                    <p>{{ model.description|default:"No description provided" }}</p>
+                </div>
+                <div class="mb-3">
+                    <h6>Training Parameters</h6>
+                    <ul>
+                        <li><strong>Epochs:</strong> {{ model.epochs }}</li>
+                        <li><strong>Batch Size:</strong> {{ model.batch_size }}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Metrics Card -->
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Performance Metrics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-6 mb-4">
+                        <div class="display-4 mb-2">{{ model.accuracy|floatformat:2 }}%</div>
+                        <div class="text-muted">Accuracy</div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="display-4 mb-2">{{ model.mse|floatformat:4 }}</div>
+                        <div class="text-muted">Mean Squared Error</div>
+                    </div>
+                </div>
+                
+                <hr>
+                <h6>Prediction Reliability</h6>
+                <div class="progress mb-3" style="height: 20px;">
+                    {% with reliability=model.accuracy %}
+                    <div class="progress-bar bg-{{ reliability|floatformat:0|divisibleby:25|yesno:'danger,warning,info,success' }}" 
+                        role="progressbar" style="width: {{ reliability }}%;" 
+                        aria-valuenow="{{ reliability|floatformat:0 }}" aria-valuemin="0" aria-valuemax="100">
+                        {{ reliability|floatformat:0 }}%
+                    </div>
+                    {% endwith %}
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle"></i> 
+                    {% if model.accuracy > 90 %}
+                    This model has excellent prediction accuracy and should provide reliable results.
+                    {% elif model.accuracy > 75 %}
+                    This model has good prediction accuracy and should provide reasonably reliable results.
+                    {% elif model.accuracy > 60 %}
+                    This model has moderate accuracy. Consider using with caution or training a new model.
+                    {% else %}
+                    This model has low accuracy. It's recommended to train a new model with more data.
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Network Structure Card -->
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Network Architecture</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Layer</th>
+                            <th>Type</th>
+                            <th>Output Shape</th>
+                            <th>Activation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Input</td>
+                            <td>Dense</td>
+                            <td>(None, 6)</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td>Hidden 1</td>
+                            <td>Dense</td>
+                            <td>(None, 12)</td>
+                            <td>ReLU</td>
+                        </tr>
+                        <tr>
+                            <td>Hidden 2</td>
+                            <td>Dense</td>
+                            <td>(None, 8)</td>
+                            <td>ReLU</td>
+                        </tr>
+                        <tr>
+                            <td>Output</td>
+                            <td>Dense</td>
+                            <td>(None, 2)</td>
+                            <td>Linear</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <hr>
+                <h6>Training Configuration</h6>
+                <ul>
+                    <li><strong>Optimizer:</strong> Adam</li>
+                    <li><strong>Loss Function:</strong> Mean Squared Error</li>
+                    <li><strong>Metrics:</strong> MAE, MSE</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Prediction History Card -->
+<div class="card mt-2">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Prediction History</h5>
+    </div>
+    <div class="card-body">
+        {% if predictions %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Measurement ID</th>
+                        <th>Efficiency</th>
+                        <th>Freshwater</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for prediction in predictions %}
+                    <tr>
+                        <td>{{ prediction.created_at|date:"M d, Y H:i" }}</td>
+                        <td>
+                            {% if prediction.measurement %}
+                            <a href="{% url 'measurement-detail' prediction.measurement.id %}">{{ prediction.measurement.id }}</a>
+                            {% else %}
+                            Manual Input
+                            {% endif %}
+                        </td>
+                        <td>{{ prediction.predicted_efficiency }} %</td>
+                        <td>{{ prediction.predicted_freshwater }} ml</td>
+                        <td>
+                            {% if prediction.measurement %}
+                            <a href="{% url 'measurement-detail' prediction.measurement.id %}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-eye"></i> View Measurement
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> This model hasn't been used for any predictions yet.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,280 @@
+{% extends 'predictor/base.html' %}
+
+{% block title %}Make Prediction - Solar Still Predictor{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Make Prediction</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Enter Parameters</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.ambient_temperature.id_for_label }}" class="form-label">{{ form.ambient_temperature.label }}</label>
+                        {{ form.ambient_temperature }}
+                        {% if form.ambient_temperature.errors %}
+                            <div class="text-danger">{{ form.ambient_temperature.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.water_temperature.id_for_label }}" class="form-label">{{ form.water_temperature.label }}</label>
+                        {{ form.water_temperature }}
+                        {% if form.water_temperature.errors %}
+                            <div class="text-danger">{{ form.water_temperature.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.glass_temperature.id_for_label }}" class="form-label">{{ form.glass_temperature.label }}</label>
+                        {{ form.glass_temperature }}
+                        {% if form.glass_temperature.errors %}
+                            <div class="text-danger">{{ form.glass_temperature.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.solar_radiation.id_for_label }}" class="form-label">{{ form.solar_radiation.label }}</label>
+                        {{ form.solar_radiation }}
+                        {% if form.solar_radiation.errors %}
+                            <div class="text-danger">{{ form.solar_radiation.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.wind_speed.id_for_label }}" class="form-label">{{ form.wind_speed.label }}</label>
+                        {{ form.wind_speed }}
+                        {% if form.wind_speed.errors %}
+                            <div class="text-danger">{{ form.wind_speed.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">Optional. Leave blank if not available.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.humidity.id_for_label }}" class="form-label">{{ form.humidity.label }}</label>
+                        {{ form.humidity }}
+                        {% if form.humidity.errors %}
+                            <div class="text-danger">{{ form.humidity.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">Optional. Leave blank if not available.</div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-chart-line"></i> Make Prediction
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Prediction Results</h5>
+            </div>
+            <div class="card-body">
+                {% if prediction_result %}
+                    <div class="alert alert-success">
+                        <h4 class="alert-heading">Prediction Successful!</h4>
+                        <p>The ANN model has predicted the following values for your solar still:</p>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body text-center">
+                                    <h5>Efficiency</h5>
+                                    <h1 class="display-4">{{ prediction_result.efficiency }}%</h1>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card bg-success text-white">
+                                <div class="card-body text-center">
+                                    <h5>Fresh Water Production</h5>
+                                    <h1 class="display-4">{{ prediction_result.freshwater }} ml</h1>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <h4 class="alert-heading">No Prediction Yet</h4>
+                        <p>Fill in the parameters on the left and click "Make Prediction" to get started.</p>
+                    </div>
+                    
+                    {% if latest_model %}
+                        <div class="mt-3">
+                            <p><strong>Using model:</strong> {{ latest_model.name }}</p>
+                            <p><strong>Model accuracy:</strong> {{ latest_model.accuracy|floatformat:2 }}%</p>
+                        </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Live Prediction with AJAX (optional enhancement) -->
+        <div class="card mt-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">Real-time Prediction</h5>
+            </div>
+            <div class="card-body">
+                <p>Move the sliders to see real-time predictions without submitting the form:</p>
+                
+                <div class="mb-3">
+                    <label for="rt_ambient_temp" class="form-label">Ambient Temperature (°C)</label>
+                    <input type="range" class="form-range" id="rt_ambient_temp" min="20" max="40" value="30" step="0.1">
+                    <div class="text-end" id="rt_ambient_temp_value">30.0 °C</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="rt_water_temp" class="form-label">Water Temperature (°C)</label>
+                    <input type="range" class="form-range" id="rt_water_temp" min="25" max="65" value="45" step="0.1">
+                    <div class="text-end" id="rt_water_temp_value">45.0 °C</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="rt_glass_temp" class="form-label">Glass Temperature (°C)</label>
+                    <input type="range" class="form-range" id="rt_glass_temp" min="25" max="60" value="40" step="0.1">
+                    <div class="text-end" id="rt_glass_temp_value">40.0 °C</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="rt_solar_rad" class="form-label">Solar Radiation (W/m²)</label>
+                    <input type="range" class="form-range" id="rt_solar_rad" min="400" max="1000" value="700" step="10">
+                    <div class="text-end" id="rt_solar_rad_value">700 W/m²</div>
+                </div>
+                
+                <div id="rt_prediction_result" class="mt-4 d-none">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body text-center">
+                                    <h6>Efficiency</h6>
+                                    <h3 id="rt_efficiency">-</h3>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-6">
+                            <div class="card bg-success text-white">
+                                <div class="card-body text-center">
+                                    <h6>Fresh Water</h6>
+                                    <h3 id="rt_freshwater">-</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="rt_prediction_loading" class="text-center d-none">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p>Calculating...</p>
+                </div>
+                
+                <div id="rt_prediction_error" class="alert alert-danger mt-3 d-none">
+                    <i class="fas fa-exclamation-triangle"></i> <span id="rt_error_message">An error occurred</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        let timeout = null;
+        
+        // Update value displays when sliders change
+        $('#rt_ambient_temp').on('input', function() {
+            $('#rt_ambient_temp_value').text($(this).val() + ' °C');
+            scheduleRealTimePrediction();
+        });
+        
+        $('#rt_water_temp').on('input', function() {
+            $('#rt_water_temp_value').text($(this).val() + ' °C');
+            scheduleRealTimePrediction();
+        });
+        
+        $('#rt_glass_temp').on('input', function() {
+            $('#rt_glass_temp_value').text($(this).val() + ' °C');
+            scheduleRealTimePrediction();
+        });
+        
+        $('#rt_solar_rad').on('input', function() {
+            $('#rt_solar_rad_value').text($(this).val() + ' W/m²');
+            scheduleRealTimePrediction();
+        });
+        
+        // Schedule real-time prediction with debounce
+        function scheduleRealTimePrediction() {
+            if (timeout) {
+                clearTimeout(timeout);
+            }
+            
+            timeout = setTimeout(function() {
+                makeRealTimePrediction();
+            }, 500); // Wait for 500ms after last change
+        }
+        
+        // Make real-time prediction using API
+        function makeRealTimePrediction() {
+            // Get values from sliders
+            const data = {
+                ambient_temperature: parseFloat($('#rt_ambient_temp').val()),
+                water_temperature: parseFloat($('#rt_water_temp').val()),
+                glass_temperature: parseFloat($('#rt_glass_temp').val()),
+                solar_radiation: parseFloat($('#rt_solar_rad').val()),
+                wind_speed: 0, // Default values
+                humidity: 50   // Default values
+            };
+            
+            // Show loading indicator
+            $('#rt_prediction_result').addClass('d-none');
+            $('#rt_prediction_error').addClass('d-none');
+            $('#rt_prediction_loading').removeClass('d-none');
+            
+            // Send AJAX request
+            $.ajax({
+                url: '{% url "api-predict" %}',
+                type: 'POST',
+                data: JSON.stringify(data),
+                contentType: 'application/json',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    // Hide loading indicator
+                    $('#rt_prediction_loading').addClass('d-none');
+                    
+                    // Show results
+                    $('#rt_prediction_result').removeClass('d-none');
+                    $('#rt_efficiency').text(response.efficiency.toFixed(2) + '%');
+                    $('#rt_freshwater').text(response.freshwater.toFixed(2) + ' ml');
+                },
+                error: function(xhr, status, error) {
+                    // Hide loading indicator
+                    $('#rt_prediction_loading').addClass('d-none');
+                    
+                    // Show error
+                    $('#rt_prediction_error').removeClass('d-none');
+                    $('#rt_error_message').text('Error: ' + (xhr.responseJSON?.error || error));
+                }
+            });
+        }
+        
+        // Initial prediction
+        scheduleRealTimePrediction();
+    });
+</script>
+{% endblock %} 

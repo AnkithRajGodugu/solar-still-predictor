@@ -1,0 +1,43 @@
+{% extends 'predictor/base.html' %}
+
+{% block title %}Delete Model - Solar Still Predictor{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">Delete Model</h5>
+                </div>
+                <div class="card-body">
+                    <p class="lead">Are you sure you want to delete the model "{{ object.name }}"?</p>
+                    <p>This action cannot be undone.</p>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Warning:</strong> Deleting this model will:
+                        <ul class="mb-0">
+                            <li>Remove the model file from the system</li>
+                            <li>Delete all associated prediction records</li>
+                            <li>Make this model unavailable for future predictions</li>
+                        </ul>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'model-detail' object.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Delete Model
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

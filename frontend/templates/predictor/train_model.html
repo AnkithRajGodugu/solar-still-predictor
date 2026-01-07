@@ -1,0 +1,179 @@
+{% extends 'predictor/base.html' %}
+
+{% block title %}Train Model - Solar Still Predictor{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Train ANN Model</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Train New Model</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.model_name.id_for_label }}" class="form-label">Model Name</label>
+                        {{ form.model_name }}
+                        {% if form.model_name.errors %}
+                            <div class="text-danger">{{ form.model_name.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <div class="text-danger">{{ form.description.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">Optional. Describe the purpose or characteristics of this model.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.epochs.id_for_label }}" class="form-label">Training Epochs</label>
+                        {{ form.epochs }}
+                        {% if form.epochs.errors %}
+                            <div class="text-danger">{{ form.epochs.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">Number of training iterations. Higher values may improve accuracy but take longer to train.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.batch_size.id_for_label }}" class="form-label">Batch Size</label>
+                        {{ form.batch_size }}
+                        {% if form.batch_size.errors %}
+                            <div class="text-danger">{{ form.batch_size.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">Number of samples processed before updating model weights.</div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        {{ form.use_sample_data }}
+                        <label class="form-check-label" for="{{ form.use_sample_data.id_for_label }}">
+                            Use sample data instead of real measurements
+                        </label>
+                        <div class="form-text">{{ form.use_sample_data.help_text }}</div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-cogs"></i> Train Model
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Training Information</h5>
+            </div>
+            <div class="card-body">
+                <h5>Available Data for Training</h5>
+                <p>
+                    You currently have <strong>{{ measurement_count }}</strong> measurements with efficiency and freshwater data
+                    that can be used for training the model.
+                </p>
+                
+                {% if measurement_count < 10 %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> You have fewer than 10 measurements with complete data.
+                        It's recommended to use sample data for training or add more measurements.
+                    </div>
+                {% endif %}
+                
+                <hr>
+                
+                <h5>About ANN Training</h5>
+                <p>
+                    The Artificial Neural Network (ANN) will be trained using either your existing measurements or
+                    synthetic sample data. The training process involves:
+                </p>
+                <ol>
+                    <li>Preprocessing and normalizing the input data</li>
+                    <li>Splitting the data into training, validation, and testing sets</li>
+                    <li>Building a neural network with multiple layers</li>
+                    <li>Training the model for the specified number of epochs</li>
+                    <li>Evaluating the model's performance using mean squared error (MSE)</li>
+                    <li>Saving the trained model for future predictions</li>
+                </ol>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> Training may take some time depending on the amount of data and 
+                    the number of epochs. Please be patient after submitting the form.
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">Network Architecture</h5>
+            </div>
+            <div class="card-body">
+                <h5>ANN Model Structure</h5>
+                <p>The neural network used for prediction has the following architecture:</p>
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Layer</th>
+                                <th>Type</th>
+                                <th>Output Shape</th>
+                                <th>Activation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Input</td>
+                                <td>Dense</td>
+                                <td>(None, 64)</td>
+                                <td>ReLU</td>
+                            </tr>
+                            <tr>
+                                <td>Hidden 1</td>
+                                <td>Dropout</td>
+                                <td>(None, 64)</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Hidden 2</td>
+                                <td>Dense</td>
+                                <td>(None, 32)</td>
+                                <td>ReLU</td>
+                            </tr>
+                            <tr>
+                                <td>Hidden 3</td>
+                                <td>Dropout</td>
+                                <td>(None, 32)</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Hidden 4</td>
+                                <td>Dense</td>
+                                <td>(None, 16)</td>
+                                <td>ReLU</td>
+                            </tr>
+                            <tr>
+                                <td>Output</td>
+                                <td>Dense</td>
+                                <td>(None, 2)</td>
+                                <td>Linear</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="card-text mt-3">
+                    <p><strong>Optimizer:</strong> Adam (learning rate = 0.001)</p>
+                    <p><strong>Loss Function:</strong> Mean Squared Error (MSE)</p>
+                    <p><strong>Metrics:</strong> Mean Absolute Error (MAE)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

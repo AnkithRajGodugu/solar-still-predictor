@@ -1,0 +1,30 @@
+{% extends 'predictor/base.html' %}
+
+{% block title %}Confirm Delete - Solar Still Predictor{% endblock %}
+
+{% block content %}
+<div class="card mx-auto" style="max-width: 600px;">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0">Confirm Deletion</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle fa-2x float-start me-3"></i>
+            <p>You are about to delete <strong>{{ object_name }}</strong>. This action cannot be undone.</p>
+            <p>Are you sure you want to proceed?</p>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{{ cancel_url }}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 

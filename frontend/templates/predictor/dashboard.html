@@ -1,0 +1,187 @@
+{% extends 'predictor/base.html' %}
+
+{% block title %}Dashboard - Solar Still Predictor{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Dashboard</h1>
+
+<!-- Stats Cards -->
+<div class="row">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title">Total Measurements</h5>
+                        <h2 class="mb-0">{{ measurement_count }}</h2>
+                    </div>
+                    <i class="fas fa-thermometer-half fa-3x"></i>
+                </div>
+                <a href="{% url 'measurement-list' %}" class="text-white">View all <i class="fas fa-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title">Predictions Made</h5>
+                        <h2 class="mb-0">{{ prediction_count }}</h2>
+                    </div>
+                    <i class="fas fa-chart-line fa-3x"></i>
+                </div>
+                <a href="{% url 'predict' %}" class="text-white">Make prediction <i class="fas fa-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title">Trained Models</h5>
+                        <h2 class="mb-0">{{ model_count }}</h2>
+                    </div>
+                    <i class="fas fa-cogs fa-3x"></i>
+                </div>
+                <a href="{% url 'train-model' %}" class="text-white">Train new model <i class="fas fa-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Latest Model Info -->
+{% if latest_model %}
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Latest Trained Model</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Name:</strong> {{ latest_model.name }}</p>
+                        <p><strong>Created:</strong> {{ latest_model.created_at }}</p>
+                        <p><strong>MSE:</strong> {{ latest_model.mse|floatformat:4 }}</p>
+                        <p><strong>Accuracy:</strong> {{ latest_model.accuracy|floatformat:2 }}%</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Description:</strong></p>
+                        <p>{{ latest_model.description|default:"No description provided." }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Performance Chart -->
+{% if chart_image %}
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Performance Chart</h5>
+            </div>
+            <div class="card-body">
+                <img src="{{ chart_image }}" alt="Performance Chart" class="img-fluid">
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Recent Measurements -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Recent Measurements</h5>
+            </div>
+            <div class="card-body">
+                {% if measurements %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Ambient Temp (°C)</th>
+                                <th>Water Temp (°C)</th>
+                                <th>Glass Temp (°C)</th>
+                                <th>Solar Radiation (W/m²)</th>
+                                <th>Efficiency (%)</th>
+                                <th>Freshwater (ml)</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for measurement in measurements %}
+                            <tr>
+                                <td>{{ measurement.date }}</td>
+                                <td>{{ measurement.time }}</td>
+                                <td>{{ measurement.ambient_temperature }}</td>
+                                <td>{{ measurement.water_temperature }}</td>
+                                <td>{{ measurement.glass_temperature }}</td>
+                                <td>{{ measurement.solar_radiation }}</td>
+                                <td>{{ measurement.efficiency|default:"-" }}</td>
+                                <td>{{ measurement.freshwater_quantity|default:"-" }}</td>
+                                <td>
+                                    <a href="{% url 'measurement-detail' measurement.id %}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'measurement-update' measurement.id %}" class="btn btn-sm btn-warning">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <a href="{% url 'measurement-list' %}" class="btn btn-primary">View All Measurements</a>
+                {% else %}
+                <p>No measurements recorded yet.</p>
+                <a href="{% url 'measurement-create' %}" class="btn btn-primary">Add New Measurement</a>
+                <a href="{% url 'upload-csv' %}" class="btn btn-secondary">Upload CSV Data</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'measurement-create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Measurement
+                    </a>
+                    <a href="{% url 'predict' %}" class="btn btn-success">
+                        <i class="fas fa-chart-line"></i> Make Prediction
+                    </a>
+                    <a href="{% url 'train-model' %}" class="btn btn-info text-white">
+                        <i class="fas fa-cogs"></i> Train New Model
+                    </a>
+                    <a href="{% url 'upload-csv' %}" class="btn btn-secondary">
+                        <i class="fas fa-file-upload"></i> Upload Data
+                    </a>
+                    <a href="{% url 'export-csv' %}" class="btn btn-dark">
+                        <i class="fas fa-file-download"></i> Export Data
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
